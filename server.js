@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
-const { GoogleGenAI } = require('@google/genai');
+const Replicate = require('replicate');
 
 dotenv.config();
 
@@ -9,73 +9,34 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
-const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY });
+const replicate = new Replicate({
+  auth: process.env.REPLICATE_API_TOKEN,
+});
+
 app.post('/api/create-avatar', async (req, res) => {
   try {
     const { prompt } = req.body;
-
     if (!prompt) {
       return res.status(400).json({ error: 'Prompt is required' });
     }
-    const enhancedPrompt = `Create a detailed avatar description based on this request: "${prompt}". 
-    Include physical appearance, clothing style, personality traits, and any unique characteristics. 
-    Format the response as a JSON object with the following structure:
-    {
-      "name": "Avatar name",
-      "appearance": "Physical description",
-      "clothing": "Clothing style", 
-      "personality": "Personality traits",
-      "uniqueFeatures": "Special characteristics"
-    }
-
-    Make sure to return only valid JSON without any markdown formatting or additional text.`;
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image-preview',
-      contents: enhancedPrompt,
-    });
-
-    const text = response.text;
-
-    let avatarData;
-    try {
-      const cleanedText = text.replace(/```json\n?|\n?```/g, '').trim();
-      const jsonMatch = cleanedText.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        avatarData = JSON.parse(jsonMatch[0]);
-      } else {
-        avatarData = {
-          name: "Generated Avatar",
-          appearance: text.substring(0, 200) + "...",
-          clothing: "Modern casual wear",
-          personality: "Friendly and engaging",
-          uniqueFeatures: "AI-generated character"
-        };
+    const enhancedPrompt = `Create a detailed portrait image of an avatar based on this request: ${prompt}. Make it suitable for a social media influencer, high quality, professional lighting, modern style`;
+    const output = await replicate.run("google/gemini-2.5-flash-image", {
+      input: {
+        prompt: enhancedPrompt,
+        output_format: "jpg"
       }
-    } catch (parseError) {
-      console.warn('JSON parsing failed, using fallback:', parseError.message);
-      avatarData = {
-        name: "Generated Avatar",
-        description: text,
-        appearance: "Custom avatar based on your request",
-        clothing: "Stylish and modern",
-        personality: "Unique and engaging",
-        uniqueFeatures: "Personalized AI character"
-      };
-    }
-
-    const finalAvatarData = {
-      name: avatarData.name || "Generated Avatar",
-      appearance: avatarData.appearance || "Custom avatar appearance",
-      clothing: avatarData.clothing || "Stylish outfit",
-      personality: avatarData.personality || "Engaging personality",
-      uniqueFeatures: avatarData.uniqueFeatures || "Unique characteristics"
+    });
+    const imageUrl = output;
+    const avatarData = {
+      name: "Generated Avatar",
+      appearance: `AI-generated avatar based on: ${prompt}`,
+      imageUrl: imageUrl 
     };
-
     res.json({
       success: true,
-      avatar: finalAvatarData,
+      avatar: avatarData,
       originalPrompt: prompt,
-      rawResponse: text 
+      imageUrl: imageUrl
     });
 
   } catch (error) {
@@ -93,26 +54,31 @@ app.get('/api/health', (req, res) => {
     status: 'OK', 
     message: 'Ribbed AI Backend is running',
     timestamp: new Date().toISOString(),
-    sdk: '@google/genai v1.16.0'
+    sdk: 'replicate with google/gemini-2.5-flash-image'
   });
 });
 
-app.get('/api/test-gemini', async (req, res) => {
+app.get('/api/test-replicate', async (req, res) => {
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-image-preview',
-      contents: 'Hello, please respond with "Gemini is working correctly!"',
+    const output = await replicate.run("google/gemini-2.5-flash-image", {
+      input: {
+        prompt: 'A simple test image of a smiling person',
+        output_format: "jpg"
+      }
     });
+
+    const imageUrl = output;
 
     res.json({
       success: true,
-      message: 'Gemini connection successful',
-      response: response.text
+      message: 'Replicate connection successful',
+      response: 'Image generated successfully',
+      imageUrl: imageUrl
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      error: 'Gemini connection failed',
+      error: 'Replicate connection failed',
       message: error.message
     });
   }
@@ -121,5 +87,5 @@ app.get('/api/test-gemini', async (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
   console.log(`Health check: http://localhost:${PORT}/api/health`);
-  console.log(`Test Gemini: http://localhost:${PORT}/api/test-gemini`);
+  console.log(`Test Replicate: http://localhost:${PORT}/api/test-replicate`);
 });

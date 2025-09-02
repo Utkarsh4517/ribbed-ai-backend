@@ -64,6 +64,88 @@ class AvatarService {
     };
   }
 
+  async createScenes(avatarUrl) {
+    if (!avatarUrl) {
+      throw new Error('Avatar URL is required');
+    }
+
+    const scenes = [
+      {
+        name: "Cozy Cafe",
+        prompt: "Place this person in a warm, cozy cafe setting. They should be sitting at a wooden table with a coffee cup, surrounded by soft lighting, books, and plants. The atmosphere should be relaxing and inviting with warm tones.",
+        id: 1
+      },
+      {
+        name: "Gym",
+        prompt: "Show this person in a modern fitness gym. They should be in athletic wear, possibly near gym equipment like dumbbells or treadmills. The setting should be energetic with good lighting and a motivational atmosphere.",
+        id: 2
+      },
+      {
+        name: "Kitchen",
+        prompt: "Place this person in a beautiful, modern kitchen. They could be cooking or preparing food, with fresh ingredients visible. The kitchen should be well-lit with contemporary appliances and a clean, organized look.",
+        id: 3
+      },
+      {
+        name: "Swimming Pool",
+        prompt: "Show this person by or in a luxurious swimming pool. They should be in appropriate swimwear, with crystal clear blue water, poolside furniture, and bright, sunny lighting. The atmosphere should be relaxing and resort-like.",
+        id: 4
+      },
+      {
+        name: "Party",
+        prompt: "Place this person at a vibrant party or celebration. They should be dressed festively, surrounded by colorful decorations, lights, and a fun party atmosphere. The mood should be energetic and celebratory.",
+        id: 5
+      }
+    ];
+
+    const sceneImages = [];
+
+    for (let i = 0; i < scenes.length; i++) {
+      try {
+        console.log(`Generating scene ${i + 1}/5: ${scenes[i].name}...`);
+        
+        const output = await replicate.run("google/nano-banana", {
+          input: {
+            prompt: scenes[i].prompt,
+            image_input: [avatarUrl]
+          }
+        });
+
+        const imageUrl = output;
+        
+        sceneImages.push({
+          id: scenes[i].id,
+          name: scenes[i].name,
+          description: scenes[i].prompt,
+          imageUrl: imageUrl,
+          originalAvatarUrl: avatarUrl
+        });
+
+        if (i < scenes.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 1500));
+        }
+
+      } catch (error) {
+        console.error(`Error generating scene ${scenes[i].name}:`, error);
+        sceneImages.push({
+          id: scenes[i].id,
+          name: scenes[i].name,
+          description: `Failed to generate ${scenes[i].name} scene`,
+          imageUrl: null,
+          originalAvatarUrl: avatarUrl,
+          error: error.message
+        });
+      }
+    }
+
+    return {
+      success: true,
+      scenes: sceneImages,
+      originalAvatarUrl: avatarUrl,
+      totalGenerated: sceneImages.filter(scene => scene.imageUrl).length,
+      totalRequested: 5
+    };
+  }
+
   async testReplicate() {
     const output = await replicate.run("google/gemini-2.5-flash-image", {
       input: {
@@ -78,6 +160,23 @@ class AvatarService {
       success: true,
       message: 'Replicate connection successful',
       response: 'Image generated successfully',
+      imageUrl: imageUrl
+    };
+  }
+
+  async testNanoBanana() {
+    const output = await replicate.run("google/nano-banana", {
+      input: {
+        prompt: 'A simple test with nano-banana model'
+      }
+    });
+
+    const imageUrl = output;
+
+    return {
+      success: true,
+      message: 'Nano-Banana connection successful',
+      response: 'Test completed successfully',
       imageUrl: imageUrl
     };
   }

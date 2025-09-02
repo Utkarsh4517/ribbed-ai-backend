@@ -22,6 +22,27 @@ class AvatarController {
     }
   }
 
+  async createScenes(req, res) {
+    try {
+      const { avatarUrl } = req.body;
+      
+      if (!avatarUrl) {
+        return res.status(400).json({ error: 'Avatar URL is required' });
+      }
+
+      const result = await avatarService.createScenes(avatarUrl);
+      res.json(result);
+
+    } catch (error) {
+      console.error('Error creating scenes:', error);
+      res.status(500).json({ 
+        error: 'Failed to create scenes',
+        message: error.message,
+        details: error.toString()
+      });
+    }
+  }
+
   async testReplicate(req, res) {
     try {
       const result = await avatarService.testReplicate();
@@ -32,6 +53,21 @@ class AvatarController {
       res.status(500).json({
         success: false,
         error: 'Replicate connection failed',
+        message: error.message
+      });
+    }
+  }
+
+  async testNanoBanana(req, res) {
+    try {
+      const result = await avatarService.testNanoBanana();
+      res.json(result);
+
+    } catch (error) {
+      console.error('Test nano-banana error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Nano-Banana connection failed',
         message: error.message
       });
     }

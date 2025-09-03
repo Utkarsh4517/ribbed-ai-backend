@@ -17,7 +17,7 @@ class AvatarService {
 
     const avatarImages = [];
 
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 1; i++) {
       try {
         console.log(`Generating avatar ${i + 1}/6...`);
         

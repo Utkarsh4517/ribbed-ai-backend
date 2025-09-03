@@ -51,6 +51,7 @@ class VideoService {
       throw error;
     }
   }
+
   async processVideoGeneration(jobId, io) {
     const redis = getRedisClient();
     try {
@@ -125,7 +126,6 @@ class VideoService {
         duration: result.data.duration,
         message: 'Video generation completed!'
       });
-
       console.log(`Video generation completed for job ${jobId}`);
       return jobData;
 
@@ -155,7 +155,6 @@ class VideoService {
           message: 'Video generation failed'
         });
       }
-      
       throw error;
     }
   }
@@ -164,7 +163,6 @@ class VideoService {
     const redis = getRedisClient();
     const jobDataStr = await redis.get(`video_job:${jobId}`);
     if (!jobDataStr) {
-      // Try to get from Supabase
       const { data, error } = await supabase
         .from('video_generations')
         .select('*')
@@ -176,26 +174,41 @@ class VideoService {
       return {
         id: data.id,
         userId: data.user_id,
+        sceneData: data.scene_data,
+        audioUrl: data.audio_url,
         status: data.status,
         videoUrl: data.video_url,
         duration: data.duration,
         error: data.error_message,
         createdAt: data.created_at,
-        completedAt: data.completed_at
+        completedAt: data.completed_at,
+        updatedAt: data.updated_at
       };
     }
     return JSON.parse(jobDataStr);
   }
-  async getUserJobs(userId) {
+
+  async getUserJobs(userId, options = {}) {
     try {
-      const { data, error } = await supabase
+      const { status, limit = 20, offset = 0 } = options;
+      
+      let query = supabase
         .from('video_generations')
         .select('*')
         .eq('user_id', userId)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+
+      if (status) {
+        query = query.eq('status', status);
+      }
+
+      const { data, error } = await query;
+
       if (error) {
         throw error;
       }
+
       return data.map(job => ({
         id: job.id,
         userId: job.user_id,
@@ -214,12 +227,60 @@ class VideoService {
       throw error;
     }
   }
+
+  async cancelJob(jobId) {
+    const redis = getRedisClient();
+    
+    try {
+      const jobDataStr = await redis.get(`video_job:${jobId}`);
+      if (jobDataStr) {
+        const jobData = JSON.parse(jobDataStr);
+        jobData.status = 'cancelled';
+        jobData.updatedAt = new Date().toISOString();
+        await redis.setex(`video_job:${jobId}`, 3600, JSON.stringify(jobData));
+      }
+
+      await supabase
+        .from('video_generations')
+        .update({ 
+          status: 'cancelled',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', jobId);
+
+      await redis.lrem('video_queue:pending', 0, jobId);
+      console.log(`Job ${jobId} cancelled`);
+    } catch (error) {
+      console.error('Error cancelling job:', error);
+      throw error;
+    }
+  }
+
+  async deleteJob(jobId) {
+    const redis = getRedisClient();
+    
+    try {
+      // Remove from Redis
+      await redis.del(`video_job:${jobId}`);
+      
+      // Remove from Supabase
+      await supabase
+        .from('video_generations')
+        .delete()
+        .eq('id', jobId);
+
+      console.log(`Job ${jobId} deleted`);
+    } catch (error) {
+      console.error('Error deleting job:', error);
+      throw error;
+    }
+  }
+
   async startQueueProcessor(io) {
     const redis = getRedisClient();
     console.log('Starting video queue processor...');
     const processQueue = async () => {
       try {
-        // Get next job from pending queue
         const jobId = await redis.brpop('video_queue:pending', 1);
         if (jobId && jobId[1]) {
           console.log(`Processing job: ${jobId[1]}`);
@@ -228,11 +289,10 @@ class VideoService {
       } catch (error) {
         console.error('Queue processing error:', error);
       }
-      // Continue processing
       setTimeout(processQueue, 1000);
     };
-    
     processQueue();
   }
 }
+
 module.exports = new VideoService();

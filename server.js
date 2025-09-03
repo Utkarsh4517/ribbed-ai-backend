@@ -48,7 +48,6 @@ async function startServer() {
   }
 }
 
-// Graceful shutdown
 process.on('SIGINT', async () => {
   console.log('Shutting down gracefully...');
   try {

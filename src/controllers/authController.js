@@ -1,4 +1,4 @@
-const authService = require('../services/authService');
+const { supabase } = require('../config/database');
 
 class AuthController {
   async signUp(req, res) {
@@ -6,17 +6,43 @@ class AuthController {
       const { email, password } = req.body;
 
       if (!email || !password) {
-        return res.status(400).json({ error: 'Email and password are required' });
+        return res.status(400).json({
+          success: false,
+          error: 'Email and password are required'
+        });
       }
 
-      const result = await authService.signUp(email, password);
-      res.json(result);
+      if (password.length < 6) {
+        return res.status(400).json({
+          success: false,
+          error: 'Password must be at least 6 characters'
+        });
+      }
+
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+
+      if (error) {
+        return res.status(400).json({
+          success: false,
+          error: error.message
+        });
+      }
+
+      res.json({
+        success: true,
+        message: 'User created successfully',
+        user: data.user,
+        session: data.session
+      });
 
     } catch (error) {
-      console.error('Signup error:', error);
-      res.status(400).json({ 
-        error: 'Failed to create account',
-        message: error.message 
+      console.error('Sign up error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Internal server error'
       });
     }
   }
@@ -26,31 +52,58 @@ class AuthController {
       const { email, password } = req.body;
 
       if (!email || !password) {
-        return res.status(400).json({ error: 'Email and password are required' });
+        return res.status(400).json({
+          success: false,
+          error: 'Email and password are required'
+        });
       }
 
-      const result = await authService.signIn(email, password);
-      res.json(result);
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        return res.status(400).json({
+          success: false,
+          error: error.message
+        });
+      }
+
+      res.json({
+        success: true,
+        message: 'Signed in successfully',
+        user: data.user,
+        session: data.session
+      });
 
     } catch (error) {
-      console.error('Signin error:', error);
-      res.status(400).json({ 
-        error: 'Failed to sign in',
-        message: error.message 
+      console.error('Sign in error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Internal server error'
       });
     }
   }
 
   async signOut(req, res) {
     try {
-      const result = await authService.signOut();
-      res.json(result);
+      const { error } = await supabase.auth.signOut();
+
+      if (error) {
+        console.error('Sign out error:', error);
+      }
+
+      res.json({
+        success: true,
+        message: 'Signed out successfully'
+      });
 
     } catch (error) {
-      console.error('Signout error:', error);
-      res.status(400).json({ 
-        error: 'Failed to sign out',
-        message: error.message 
+      console.error('Sign out error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Internal server error'
       });
     }
   }

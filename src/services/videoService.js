@@ -12,7 +12,6 @@ class VideoService {
   async submitVideoGeneration(userId, sceneData, audioUrl) {
     const redis = getRedisClient();
     const jobId = uuidv4();
-    
     const jobData = {
       id: jobId,
       userId,
@@ -24,16 +23,9 @@ class VideoService {
     };
 
     try {
-      // Store job in Redis (expires in 1 hour)
       await redis.setEx(`video_job:${jobId}`, 3600, JSON.stringify(jobData));
-      
-      // Add to user's job list
       await redis.sAdd(`user_jobs:${userId}`, jobId);
-      
-      // Add to pending queue
       await redis.lPush('video_queue:pending', jobId);
-      
-      // Store in Supabase for persistence
       const { error } = await supabase
         .from('video_generations')
         .insert([{
@@ -61,20 +53,14 @@ class VideoService {
     const redis = getRedisClient();
     
     try {
-      // Get job data
       const jobDataStr = await redis.get(`video_job:${jobId}`);
       if (!jobDataStr) {
         throw new Error('Job not found');
       }
-      
       const jobData = JSON.parse(jobDataStr);
-      
-      // Update status to in-progress
       jobData.status = 'in-progress';
       jobData.updatedAt = new Date().toISOString();
       await redis.setEx(`video_job:${jobId}`, 3600, JSON.stringify(jobData));
-      
-      // Update Supabase
       await supabase
         .from('video_generations')
         .update({ 
@@ -83,7 +69,6 @@ class VideoService {
         })
         .eq('id', jobId);
 
-      // Emit status update
       io.to(`user:${jobData.userId}`).emit('videoStatusUpdate', {
         jobId,
         status: 'in-progress',
@@ -92,7 +77,6 @@ class VideoService {
 
       console.log(`Processing video generation for job ${jobId}`);
 
-      // Submit to fal.ai
       const result = await fal.subscribe("fal-ai/bytedance/omnihuman", {
         input: {
           image_url: jobData.sceneData.imageUrl,
@@ -114,16 +98,12 @@ class VideoService {
         },
       });
 
-      // Update job with result
       jobData.status = 'completed';
       jobData.videoUrl = result.data.video.url;
       jobData.duration = result.data.duration;
       jobData.completedAt = new Date().toISOString();
       jobData.updatedAt = new Date().toISOString();
-
       await redis.setEx(`video_job:${jobId}`, 86400, JSON.stringify(jobData)); // Keep for 24 hours
-
-      // Update Supabase
       await supabase
         .from('video_generations')
         .update({ 
@@ -135,7 +115,6 @@ class VideoService {
         })
         .eq('id', jobId);
 
-      // Emit completion
       io.to(`user:${jobData.userId}`).emit('videoStatusUpdate', {
         jobId,
         status: 'completed',
@@ -149,8 +128,6 @@ class VideoService {
 
     } catch (error) {
       console.error(`Error processing video job ${jobId}:`, error);
-      
-      // Update job status to failed
       try {
         const jobDataStr = await redis.get(`video_job:${jobId}`);
         if (jobDataStr) {
@@ -160,8 +137,6 @@ class VideoService {
           jobData.updatedAt = new Date().toISOString();
           
           await redis.setEx(`video_job:${jobId}`, 3600, JSON.stringify(jobData));
-          
-          // Update Supabase
           await supabase
             .from('video_generations')
             .update({ 
@@ -171,7 +146,6 @@ class VideoService {
             })
             .eq('id', jobId);
 
-          // Emit failure
           io.to(`user:${jobData.userId}`).emit('videoStatusUpdate', {
             jobId,
             status: 'failed',
@@ -194,7 +168,6 @@ class VideoService {
       const jobDataStr = await redis.get(`video_job:${jobId}`);
       
       if (!jobDataStr) {
-        // Try to get from Supabase
         const { data, error } = await supabase
           .from('video_generations')
           .select('*')
@@ -271,7 +244,6 @@ class VideoService {
     const redis = getRedisClient();
     
     try {
-      // Get job data
       const jobDataStr = await redis.get(`video_job:${jobId}`);
       if (jobDataStr) {
         const jobData = JSON.parse(jobDataStr);
@@ -280,7 +252,6 @@ class VideoService {
         await redis.setEx(`video_job:${jobId}`, 3600, JSON.stringify(jobData));
       }
 
-      // Update Supabase
       await supabase
         .from('video_generations')
         .update({ 
@@ -288,10 +259,7 @@ class VideoService {
           updated_at: new Date().toISOString()
         })
         .eq('id', jobId);
-
-      // Remove from pending queue if it's there
       await redis.lRem('video_queue:pending', 0, jobId);
-      
       console.log(`Job ${jobId} cancelled`);
     } catch (error) {
       console.error('Error cancelling job:', error);
@@ -301,17 +269,12 @@ class VideoService {
 
   async deleteJob(jobId) {
     const redis = getRedisClient();
-    
     try {
-      // Remove from Redis
       await redis.del(`video_job:${jobId}`);
-      
-      // Remove from Supabase
       await supabase
         .from('video_generations')
         .delete()
         .eq('id', jobId);
-
       console.log(`Job ${jobId} deleted`);
     } catch (error) {
       console.error('Error deleting job:', error);
@@ -332,55 +295,41 @@ class VideoService {
       
       try {
         isProcessing = true;
-        
-        // Get next job from pending queue (blocking pop with 1 second timeout)
         const result = await redis.blPop('video_queue:pending', 1);
-        
         if (result && result.element) {
           console.log(`Processing job: ${result.element}`);
           await this.processVideoGeneration(result.element, io);
         }
       } catch (error) {
         if (error.message.includes('TIMEOUT')) {
-          // This is expected when no jobs are available
-          // console.log('No jobs in queue, waiting...');
+          console.log('No jobs in queue, waiting...');
         } else {
           console.error('Queue processing error:', error);
         }
       } finally {
         isProcessing = false;
-        // Continue processing after a short delay
         setTimeout(processQueue, 1000);
       }
     };
     
-    // Start the processing loop
     processQueue();
-    
-    // Also handle any existing jobs that might be stuck
     this.recoverStuckJobs(io);
   }
 
   async recoverStuckJobs(io) {
     try {
       console.log('Checking for stuck jobs...');
-      
-      // Find jobs that have been in-progress for too long (> 10 minutes)
       const { data, error } = await supabase
         .from('video_generations')
         .select('*')
         .eq('status', 'in-progress')
         .lt('updated_at', new Date(Date.now() - 10 * 60 * 1000).toISOString());
-
       if (error) {
         console.error('Error checking stuck jobs:', error);
         return;
       }
-
       for (const job of data || []) {
         console.log(`Recovering stuck job: ${job.id}`);
-        
-        // Reset to pending and add back to queue
         await supabase
           .from('video_generations')
           .update({ 

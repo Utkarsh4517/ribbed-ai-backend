@@ -2,6 +2,7 @@ const express = require('express');
 const videoController = require('../controllers/videoController');
 const videoService = require('../services/videoService');
 const { authMiddleware } = require('../middleware/authMiddleware');
+
 const router = express.Router();
 router.use(authMiddleware);
 router.post('/generate', videoController.submitVideoGeneration);

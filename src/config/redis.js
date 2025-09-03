@@ -17,7 +17,16 @@ async function initializeRedis() {
       console.log('Connected to Redis');
     });
 
+    redisClient.on('ready', () => {
+      console.log('Redis client ready');
+    });
+
     await redisClient.connect();
+    
+    // Test the connection
+    await redisClient.ping();
+    console.log('Redis ping successful');
+    
     return redisClient;
   } catch (error) {
     console.error('Failed to connect to Redis:', error);
@@ -26,13 +35,21 @@ async function initializeRedis() {
 }
 
 function getRedisClient() {
-  if (!redisClient) {
-    throw new Error('Redis client not initialized');
+  if (!redisClient || !redisClient.isOpen) {
+    throw new Error('Redis client not initialized or disconnected');
   }
   return redisClient;
 }
 
+async function closeRedis() {
+  if (redisClient && redisClient.isOpen) {
+    await redisClient.quit();
+    redisClient = null;
+  }
+}
+
 module.exports = {
   initializeRedis,
-  getRedisClient
+  getRedisClient,
+  closeRedis
 };

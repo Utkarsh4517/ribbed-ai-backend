@@ -7,6 +7,7 @@ const routes = require('./src/routes');
 const errorHandler = require('./src/middleware/errorHandler');
 const { initializeRedis } = require('./src/config/redis');
 const { initializeSocketHandlers } = require('./src/services/socketService');
+const videoService = require('./src/services/videoService');
 
 const app = express();
 const server = createServer(app);
@@ -19,9 +20,7 @@ const io = new Server(server, {
 
 app.use(cors());
 app.use(express.json());
-
 app.set('io', io);
-
 app.use('/api', routes);
 app.use(errorHandler);
 
@@ -30,11 +29,15 @@ async function startServer() {
     await initializeRedis();
     initializeSocketHandlers(io);
     
+    // Start the video queue processor automatically
+    videoService.startQueueProcessor(io);
+    
     server.listen(config.PORT, () => {
       console.log(`Server is running on port ${config.PORT}`);
       console.log(`Health check: http://localhost:${config.PORT}/api/health`);
       console.log(`WebSocket server ready`);
       console.log(`Redis connected`);
+      console.log(`Video queue processor started`);
     });
   } catch (error) {
     console.error('Failed to start server:', error);

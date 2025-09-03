@@ -6,4 +6,5 @@ module.exports = {
   SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY,
   REPLICATE_API_TOKEN: process.env.REPLICATE_API_TOKEN,
   FAL_KEY: process.env.FAL_KEY,
+  REDIS_URL: process.env.REDIS_URL || 'redis://localhost:6379',
 };

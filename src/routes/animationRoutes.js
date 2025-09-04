@@ -7,5 +7,6 @@ const router = express.Router();
 router.get('/status/:animationId', authMiddleware, animationController.getAnimationStatus);
 router.get('/user-animations', authMiddleware, animationController.getUserAnimations);
 router.post('/animate-scene', authMiddleware, animationController.animateScene);
+router.post('/animate-multiple-scenes', authMiddleware, animationController.animateMultipleScenes);
 
 module.exports = router;

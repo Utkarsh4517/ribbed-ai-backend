@@ -7,24 +7,23 @@ class AvatarService {
     }
 
     const variations = [
-      `Create a detailed portrait image of an avatar based on this request: ${prompt}. Make it suitable for a social media influencer, high quality, professional lighting, modern style`,
-      `Generate a stylish avatar portrait: ${prompt}. Focus on trendy fashion, contemporary look, studio lighting, perfect for social media`,
-      `Design a professional influencer avatar: ${prompt}. Emphasize charismatic expression, fashionable appearance, high-end photography style`,
-      `Create an artistic avatar portrait: ${prompt}. Modern aesthetic, creative lighting, suitable for digital content creation`,
-      `Generate a vibrant avatar image: ${prompt}. Bold colors, dynamic pose, professional quality, perfect for online presence`,
-      `Design a sophisticated avatar: ${prompt}. Elegant styling, premium look, editorial photography quality, social media ready`
+      `Create a realistic human avatar front facing to camera (Dont show the mobile): ${prompt}. Front-facing camera angle, natural selfie pose, realistic facial features, authentic lighting, high quality portrait. generate the output by editing the input image`,
+      `Generate a realistic selfie-style avatar (Dont show the mobile): ${prompt}. Direct eye contact with camera, natural human appearance, front-facing angle, realistic skin texture and features. generate the output by editing the input image`,
+      `Design a realistic human selfie avatar front facing to camera (Dont show the mobile): ${prompt}. Front camera perspective, genuine human expression, natural lighting, photorealistic quality, authentic portrait style. generate the output by editing the input image`,
+      `Create a front-facing realistic avatar front facing to camera (Dont show the mobile): ${prompt}. Natural human features, direct camera gaze, realistic proportions, authentic selfie angle and lighting. generate the output by editing the input image`,
+      `Generate a realistic human portrait selfie front facing to camera (Dont show the mobile): ${prompt}. Front-facing camera view, natural expression, photorealistic human features, genuine selfie composition. generate the output by editing the input image`,
+      `Design a realistic selfie camera avatar front facing to camera (Dont show the mobile): ${prompt}. Human appearance, front-facing angle, natural pose, realistic facial details, authentic selfie lighting and perspective. generate the output by editing the input image`
     ];
 
     const avatarImages = [];
 
-    for (let i = 0; i < 1; i++) {
+    for (let i = 0; i < 6; i++) {
       try {
         console.log(`Generating avatar ${i + 1}/6...`);
-        
-        const output = await replicate.run("google/gemini-2.5-flash-image", {
+        const output = await replicate.run("google/nano-banana", {
           input: {
             prompt: variations[i],
-            output_format: "jpg"
+            image_input: ["https://enjaqtorkhhaopdzsdir.supabase.co/storage/v1/object/public/frames/Frame%201%20from%20Figma.png"]
           }
         });
 
@@ -72,28 +71,53 @@ class AvatarService {
     const scenes = [
       {
         name: "Cozy Cafe",
-        prompt: "Place this person in a warm, cozy cafe setting. They should be sitting at a wooden table with a coffee cup, surrounded by soft lighting, books, and plants. The atmosphere should be relaxing and inviting with warm tones.",
+        prompt: "Place this ultra-realistic human avatar in the horizontal center of a warm, cozy cafe setting, vertical portrait orientation. They should be sitting at a wooden table with a coffee cup, surrounded by soft lighting, books, and plants. The atmosphere should be relaxing and inviting with warm tones. Ultra-realistic human features, photorealistic quality.",
         id: 1
       },
       {
         name: "Gym",
-        prompt: "Show this person in a modern fitness gym. They should be in athletic wear, possibly near gym equipment like dumbbells or treadmills. The setting should be energetic with good lighting and a motivational atmosphere.",
+        prompt: "Show this ultra-realistic human avatar centered horizontally in a modern fitness gym, vertical portrait format. They should be in athletic wear, possibly near gym equipment like dumbbells or treadmills. The setting should be energetic with good lighting and a motivational atmosphere. Photorealistic human appearance.",
         id: 2
       },
       {
         name: "Kitchen",
-        prompt: "Place this person in a beautiful, modern kitchen. They could be cooking or preparing food, with fresh ingredients visible. The kitchen should be well-lit with contemporary appliances and a clean, organized look.",
+        prompt: "Place this ultra-realistic human avatar in the horizontal center of a beautiful, modern kitchen, vertical portrait orientation. They could be cooking or preparing food, with fresh ingredients visible. The kitchen should be well-lit with contemporary appliances and a clean, organized look. Ultra-realistic human features.",
         id: 3
       },
       {
         name: "Swimming Pool",
-        prompt: "Show this person by or in a luxurious swimming pool. They should be in appropriate swimwear, with crystal clear blue water, poolside furniture, and bright, sunny lighting. The atmosphere should be relaxing and resort-like.",
+        prompt: "Show this ultra-realistic human avatar centered horizontally by a luxurious swimming pool, vertical portrait format. They should be in appropriate swimwear, with crystal clear blue water, poolside furniture, and bright, sunny lighting. The atmosphere should be relaxing and resort-like. Photorealistic human quality.",
         id: 4
       },
       {
         name: "Party",
-        prompt: "Place this person at a vibrant party or celebration. They should be dressed festively, surrounded by colorful decorations, lights, and a fun party atmosphere. The mood should be energetic and celebratory.",
+        prompt: "Place this ultra-realistic human avatar in the horizontal center at a vibrant party or celebration, vertical portrait orientation. They should be dressed festively, surrounded by colorful decorations, lights, and a fun party atmosphere. The mood should be energetic and celebratory. Ultra-realistic human appearance.",
         id: 5
+      },
+      {
+        name: "Office Workspace",
+        prompt: "Position this ultra-realistic human avatar horizontally centered in a modern office workspace, vertical portrait format. They should be at a desk with laptop, office supplies, and professional lighting. Clean, contemporary office environment. Photorealistic human features.",
+        id: 6
+      },
+      {
+        name: "Beach Sunset",
+        prompt: "Show this ultra-realistic human avatar centered horizontally on a beautiful beach at sunset, vertical portrait orientation. Golden hour lighting, ocean waves in background, relaxed beach attire. Warm, romantic atmosphere with ultra-realistic human appearance.",
+        id: 7
+      },
+      {
+        name: "City Rooftop",
+        prompt: "Place this ultra-realistic human avatar in the horizontal center on a stylish city rooftop, vertical portrait format. Urban skyline background, modern rooftop setting, evening lighting. Sophisticated urban vibe with photorealistic human quality.",
+        id: 8
+      },
+      {
+        name: "Bookstore Library",
+        prompt: "Position this ultra-realistic human avatar horizontally centered in a cozy bookstore or library, vertical portrait orientation. Surrounded by bookshelves, reading nook, warm ambient lighting. Intellectual, peaceful atmosphere with ultra-realistic human features.",
+        id: 9
+      },
+      {
+        name: "Art Gallery",
+        prompt: "Show this ultra-realistic human avatar centered horizontally in a contemporary art gallery, vertical portrait format. Modern artworks on walls, gallery lighting, sophisticated cultural setting. Elegant atmosphere with photorealistic human appearance.",
+        id: 10
       }
     ];
 

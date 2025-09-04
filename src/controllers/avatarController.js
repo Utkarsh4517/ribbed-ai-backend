@@ -29,8 +29,9 @@ class AvatarController {
       if (!avatarUrl) {
         return res.status(400).json({ error: 'Avatar URL is required' });
       }
-
-      const result = await avatarService.createScenes(avatarUrl);
+      const userId = req.user?.id;
+      const io = req.app.get('io');
+      const result = await avatarService.createScenes(avatarUrl, userId, io);
       res.json(result);
 
     } catch (error) {

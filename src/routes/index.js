@@ -4,6 +4,7 @@ const avatarRoutes = require('./avatarRoutes');
 const healthRoutes = require('./healthRoutes');
 const ttsRoutes = require('./ttsRoutes');
 const videoRoutes = require('./videoRoutes');
+const animationRoutes = require('./animationRoutes');
 
 const router = express.Router();
 
@@ -12,5 +13,6 @@ router.use('/', avatarRoutes);
 router.use('/', healthRoutes);
 router.use('/tts', ttsRoutes);
 router.use('/video', videoRoutes);
+router.use('/animation', animationRoutes);
 
 module.exports = router;

@@ -1,6 +1,7 @@
 function initializeSocketHandlers(io) {
   io.on('connection', (socket) => {
     console.log('Client connected:', socket.id);
+    
     socket.on('authenticate', (data) => {
       try {
         const { userId } = data;
@@ -14,6 +15,29 @@ function initializeSocketHandlers(io) {
       } catch (error) {
         console.error('Authentication error:', error);
         socket.emit('authenticated', { success: false, error: error.message });
+      }
+    });
+
+    socket.on('requestAnimationStatus', async (data) => {
+      try {
+        const { animationId } = data;
+        const animationService = require('./animationService');
+        const status = await animationService.getAnimationStatus(animationId);
+        
+        socket.emit('animationStatusUpdate', {
+          animationId,
+          sceneId: status.sceneId,
+          status: status.status,
+          animatedVideoUrl: status.animatedVideoUrl,
+          error: status.error
+        });
+      } catch (error) {
+        console.error('Error fetching animation status:', error);
+        socket.emit('animationStatusUpdate', {
+          animationId: data.animationId,
+          status: 'error',
+          error: error.message
+        });
       }
     });
 

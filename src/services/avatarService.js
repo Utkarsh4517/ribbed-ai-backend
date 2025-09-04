@@ -1,4 +1,5 @@
 const { replicate } = require('../config/replicate');
+const animationService = require('./animationService');
 
 class AvatarService {
   async createAvatar(prompt) {
@@ -17,7 +18,7 @@ class AvatarService {
 
     const avatarImages = [];
 
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 1; i++) {
       try {
         console.log(`Generating avatar ${i + 1}/6...`);
         const output = await replicate.run("google/nano-banana", {
@@ -63,7 +64,7 @@ class AvatarService {
     };
   }
 
-  async createScenes(avatarUrl) {
+  async createScenes(avatarUrl, userId = null, io = null) {
     if (!avatarUrl) {
       throw new Error('Avatar URL is required');
     }
@@ -123,9 +124,9 @@ class AvatarService {
 
     const sceneImages = [];
 
-    for (let i = 0; i < scenes.length; i++) {
+    for (let i = 0; i < 1; i++) {
       try {
-        console.log(`Generating scene ${i + 1}/5: ${scenes[i].name}...`);
+        console.log(`Generating scene ${i + 1}/10: ${scenes[i].name}...`);
         
         const output = await replicate.run("google/nano-banana", {
           input: {
@@ -136,13 +137,21 @@ class AvatarService {
 
         const imageUrl = output;
         
-        sceneImages.push({
+        const sceneData = {
           id: scenes[i].id,
           name: scenes[i].name,
           description: scenes[i].prompt,
           imageUrl: imageUrl,
           originalAvatarUrl: avatarUrl
-        });
+        };
+
+        sceneImages.push(sceneData);
+
+        if (userId && io && imageUrl) {
+          this.triggerSceneAnimation(sceneData, userId, io).catch(error => {
+            console.error(`Failed to trigger animation for scene ${scenes[i].id}:`, error);
+          });
+        }
 
         if (i < scenes.length - 1) {
           await new Promise(resolve => setTimeout(resolve, 1500));
@@ -166,8 +175,17 @@ class AvatarService {
       scenes: sceneImages,
       originalAvatarUrl: avatarUrl,
       totalGenerated: sceneImages.filter(scene => scene.imageUrl).length,
-      totalRequested: 5
+      totalRequested: 10
     };
+  }
+
+  async triggerSceneAnimation(sceneData, userId, io) {
+    try {
+      await animationService.animateScene(sceneData, userId, io);
+    } catch (error) {
+      console.error(`Error triggering animation for scene ${sceneData.id}:`, error);
+      throw error;
+    }
   }
 
   async testReplicate() {

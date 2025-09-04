@@ -1,6 +1,64 @@
 const avatarService = require('../services/avatarService');
 
 class AvatarController {
+  async getPublicAvatars(req, res) {
+    try {
+      const result = await avatarService.getPublicAvatars();
+      res.json(result);
+    } catch (error) {
+      console.error('Error fetching public avatars:', error);
+      res.status(500).json({ 
+        error: 'Failed to fetch public avatars',
+        message: error.message
+      });
+    }
+  }
+
+  async getAvatarScenes(req, res) {
+    try {
+      const { avatarId } = req.params;
+      
+      if (!avatarId) {
+        return res.status(400).json({ error: 'Avatar ID is required' });
+      }
+
+      const result = await avatarService.getScenesForAvatar(parseInt(avatarId));
+      res.json(result);
+    } catch (error) {
+      console.error('Error fetching avatar scenes:', error);
+      res.status(500).json({ 
+        error: 'Failed to fetch avatar scenes',
+        message: error.message
+      });
+    }
+  }
+
+  async saveAvatarWithScenes(req, res) {
+    try {
+      const { avatarData, scenesData } = req.body;
+      const userId = req.user?.id;
+      
+      if (!avatarData || !scenesData) {
+        return res.status(400).json({ 
+          error: 'Avatar data and scenes data are required' 
+        });
+      }
+
+      const result = await avatarService.saveAvatarWithScenes(
+        avatarData, 
+        scenesData, 
+        userId
+      );
+      res.status(201).json(result);
+    } catch (error) {
+      console.error('Error saving avatar with scenes:', error);
+      res.status(500).json({ 
+        error: 'Failed to save avatar with scenes',
+        message: error.message
+      });
+    }
+  }
+
   async saveAvatar(req, res) {
     try {
       const { imageUrl } = req.body;

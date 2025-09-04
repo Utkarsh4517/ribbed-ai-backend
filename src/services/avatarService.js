@@ -3,14 +3,162 @@ const animationService = require('./animationService');
 const { supabase } = require('../config/database');
 
 class AvatarService {
+  async getPublicAvatars() {
+    try {
+      const { data, error } = await supabase
+        .from('public_avatars')
+        .select(`
+          id,
+          image_url,
+          original_prompt,
+          appearance_description,
+          usage_count,
+          created_at
+        `)
+        .eq('is_active', true)
+        .order('usage_count', { ascending: false })
+        .limit(20); // Get top 20 most used avatars
+
+      if (error) {
+        console.error('Error fetching public avatars:', error);
+        throw new Error('Failed to fetch public avatars');
+      }
+
+      return {
+        success: true,
+        avatars: data || []
+      };
+    } catch (error) {
+      console.error('Error in getPublicAvatars:', error);
+      throw error;
+    }
+  }
+
+  async getScenesForAvatar(avatarId) {
+    try {
+      const { data, error } = await supabase
+        .from('avatar_scenes')
+        .select(`
+          id,
+          scene_name,
+          scene_description,
+          image_url,
+          scene_order
+        `)
+        .eq('avatar_id', avatarId)
+        .eq('is_successful', true)
+        .order('scene_order', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching scenes for avatar:', error);
+        throw new Error('Failed to fetch scenes');
+      }
+
+      return {
+        success: true,
+        scenes: data || []
+      };
+    } catch (error) {
+      console.error('Error in getScenesForAvatar:', error);
+      throw error;
+    }
+  }
+
+  async saveAvatarWithScenes(avatarData, scenesData, userId = null) {
+    try {
+      const { data: avatarResult, error: avatarError } = await supabase
+        .from('public_avatars')
+        .upsert([{
+          image_url: avatarData.imageUrl,
+          original_prompt: avatarData.originalPrompt || null,
+          variation_number: avatarData.variation || 1,
+          appearance_description: avatarData.appearance || null
+        }], {
+          onConflict: 'image_url',
+          ignoreDuplicates: false
+        })
+        .select()
+        .single();
+
+      if (avatarError) {
+        console.error('Error saving avatar:', avatarError);
+        throw new Error('Failed to save avatar');
+      }
+
+      const avatarId = avatarResult.id;
+
+      const scenesToSave = scenesData.map((scene, index) => ({
+        avatar_id: avatarId,
+        scene_name: scene.name,
+        scene_description: scene.description,
+        image_url: scene.imageUrl,
+        scene_order: scene.id || (index + 1),
+        is_successful: !!scene.imageUrl
+      }));
+
+      const { error: scenesError } = await supabase
+        .from('avatar_scenes')
+        .upsert(scenesToSave, {
+          onConflict: 'avatar_id,scene_order',
+          ignoreDuplicates: false
+        });
+
+      if (scenesError) {
+        console.error('Error saving scenes:', scenesError);
+        throw new Error('Failed to save scenes');
+      }
+
+      try {
+        await supabase.rpc('increment_usage_count', { avatar_id: avatarId });
+      } catch (rpcError) {
+        console.warn('RPC increment failed, using fallback method:', rpcError.message);
+        const { data: currentAvatar, error: fetchError } = await supabase
+          .from('public_avatars')
+          .select('usage_count')
+          .eq('id', avatarId)
+          .single();
+
+        if (!fetchError && currentAvatar) {
+          await supabase
+            .from('public_avatars')
+            .update({ usage_count: (currentAvatar.usage_count || 0) + 1 })
+            .eq('id', avatarId);
+        }
+      }
+
+      if (userId) {
+        await supabase
+          .from('user_avatars')
+          .insert([{
+            user_id: userId,
+            public_avatar_id: avatarId
+          }]);
+      }
+
+      return {
+        success: true,
+        avatarId: avatarId,
+        message: 'Avatar and scenes saved successfully'
+      };
+    } catch (error) {
+      console.error('Error in saveAvatarWithScenes:', error);
+      throw error;
+    }
+  }
+
   async saveAvatar(imageUrl) {
     if (!imageUrl) {
       throw new Error('Image URL is required');
     }
 
     const { data, error } = await supabase
-      .from('avatars')
-      .insert([{ image_url: imageUrl }])
+      .from('public_avatars')
+      .insert([{ 
+        image_url: imageUrl,
+        original_prompt: null,
+        variation_number: 1,
+        appearance_description: 'Legacy Avatar'
+      }])
       .select();
 
     if (error) {

@@ -1,7 +1,26 @@
 const { replicate } = require('../config/replicate');
 const animationService = require('./animationService');
+const { supabase } = require('../config/database');
 
 class AvatarService {
+  async saveAvatar(imageUrl) {
+    if (!imageUrl) {
+      throw new Error('Image URL is required');
+    }
+
+    const { data, error } = await supabase
+      .from('avatars')
+      .insert([{ image_url: imageUrl }])
+      .select();
+
+    if (error) {
+      console.error('Error saving avatar to Supabase:', error);
+      throw new Error('Failed to save avatar.');
+    }
+
+    return data[0];
+  }
+
   async createAvatar(prompt) {
     if (!prompt) {
       throw new Error('Prompt is required');

@@ -1,6 +1,26 @@
 const avatarService = require('../services/avatarService');
 
 class AvatarController {
+  async saveAvatar(req, res) {
+    try {
+      const { imageUrl } = req.body;
+      
+      if (!imageUrl) {
+        return res.status(400).json({ error: 'imageUrl is required' });
+      }
+
+      const savedAvatar = await avatarService.saveAvatar(imageUrl);
+      res.status(201).json(savedAvatar);
+
+    } catch (error) {
+      console.error('Error saving avatar:', error);
+      res.status(500).json({ 
+        error: 'Failed to save avatar',
+        message: error.message
+      });
+    }
+  }
+
   async createAvatar(req, res) {
     try {
       const { prompt } = req.body;

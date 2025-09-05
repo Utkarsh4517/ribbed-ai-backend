@@ -185,7 +185,7 @@ class AvatarService {
 
     const avatarImages = [];
 
-    for (let i = 0; i < 1; i++) {
+    for (let i = 0; i < 6; i++) {
       try {
         console.log(`Generating avatar ${i + 1}/6...`);
         const output = await replicate.run("google/nano-banana", {
@@ -291,7 +291,7 @@ class AvatarService {
 
     const sceneImages = [];
 
-    for (let i = 0; i < 1; i++) {
+    for (let i = 0; i < scenes.length; i++) {
       try {
         console.log(`Generating scene ${i + 1}/10: ${scenes[i].name}...`);
         
@@ -343,6 +343,85 @@ class AvatarService {
       originalAvatarUrl: avatarUrl,
       totalGenerated: sceneImages.filter(scene => scene.imageUrl).length,
       totalRequested: 10
+    };
+  }
+
+  async createCustomScenes(avatarUrl, customScenes, userId = null, io = null) {
+    if (!avatarUrl) {
+      throw new Error('Avatar URL is required');
+    }
+
+    if (!customScenes || !Array.isArray(customScenes) || customScenes.length === 0) {
+      throw new Error('Custom scenes array is required');
+    }
+
+    if (customScenes.length > 6) {
+      throw new Error('Maximum 6 custom scenes allowed');
+    }
+
+    const sceneImages = [];
+
+    for (let i = 0; i < customScenes.length; i++) {
+      try {
+        const scene = customScenes[i];
+        console.log(`Generating custom scene ${i + 1}/${customScenes.length}: ${scene.name}...`);
+        
+        // Format the user's description into a proper prompt for nano-banana
+        const formattedPrompt = `Place this ultra-realistic human avatar in the horizontal center of ${scene.description}, vertical portrait orientation. Ultra-realistic human features, photorealistic quality, natural lighting and atmosphere.`;
+        
+        const output = await replicate.run("google/nano-banana", {
+          input: {
+            prompt: formattedPrompt,
+            image_input: [avatarUrl]
+          }
+        });
+
+        const imageUrl = output;
+        
+        const sceneData = {
+          id: scene.id || (i + 1),
+          name: scene.name,
+          description: scene.description,
+          imageUrl: imageUrl,
+          originalAvatarUrl: avatarUrl,
+          isCustom: true
+        };
+
+        sceneImages.push(sceneData);
+
+        // Trigger animation if user is authenticated and socket is available
+        if (userId && io && imageUrl) {
+          this.triggerSceneAnimation(sceneData, userId, io).catch(error => {
+            console.error(`Failed to trigger animation for custom scene ${scene.id}:`, error);
+          });
+        }
+
+        // Add delay between generations to avoid rate limits
+        if (i < customScenes.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 1500));
+        }
+
+      } catch (error) {
+        console.error(`Error generating custom scene ${customScenes[i].name}:`, error);
+        sceneImages.push({
+          id: customScenes[i].id || (i + 1),
+          name: customScenes[i].name,
+          description: `Failed to generate ${customScenes[i].name} scene`,
+          imageUrl: null,
+          originalAvatarUrl: avatarUrl,
+          isCustom: true,
+          error: error.message
+        });
+      }
+    }
+
+    return {
+      success: true,
+      scenes: sceneImages,
+      originalAvatarUrl: avatarUrl,
+      totalGenerated: sceneImages.filter(scene => scene.imageUrl).length,
+      totalRequested: customScenes.length,
+      isCustom: true
     };
   }
 

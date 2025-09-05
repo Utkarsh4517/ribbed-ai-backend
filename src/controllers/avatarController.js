@@ -122,6 +122,46 @@ class AvatarController {
     }
   }
 
+  async createCustomScenes(req, res) {
+    try {
+      const { avatarUrl, customScenes } = req.body;
+      
+      if (!avatarUrl) {
+        return res.status(400).json({ error: 'Avatar URL is required' });
+      }
+
+      if (!customScenes || !Array.isArray(customScenes)) {
+        return res.status(400).json({ error: 'Custom scenes array is required' });
+      }
+
+      if (customScenes.length > 6) {
+        return res.status(400).json({ error: 'Maximum 6 custom scenes allowed' });
+      }
+
+      // Validate each scene has required fields
+      for (let scene of customScenes) {
+        if (!scene.name || !scene.description) {
+          return res.status(400).json({ 
+            error: 'Each scene must have a name and description' 
+          });
+        }
+      }
+
+      const userId = req.user?.id;
+      const io = req.app.get('io');
+      const result = await avatarService.createCustomScenes(avatarUrl, customScenes, userId, io);
+      res.json(result);
+
+    } catch (error) {
+      console.error('Error creating custom scenes:', error);
+      res.status(500).json({ 
+        error: 'Failed to create custom scenes',
+        message: error.message,
+        details: error.toString()
+      });
+    }
+  }
+
   async testReplicate(req, res) {
     try {
       const result = await avatarService.testReplicate();
